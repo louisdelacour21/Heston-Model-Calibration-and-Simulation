@@ -1,0 +1,303 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{float}
+
+\geometry{margin=2.5cm}
+
+\title{The Heston Stochastic Volatility Model and Its Application to Autocallable Notes Pricing}
+\author{Quantitative Finance Analysis}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document provides a comprehensive overview of the Heston stochastic volatility model and its implementation in pricing autocallable structured products. We examine the theoretical foundations of the Heston model, its advantages over the Black-Scholes framework, and demonstrate its practical application through a Monte Carlo pricing engine for complex derivatives such as autocallable notes.
+\end{abstract}
+
+\section{Introduction}
+
+The pricing of complex derivatives, particularly path-dependent instruments like autocallable notes, requires sophisticated models that can capture the realistic dynamics of financial markets. The Black-Scholes model, while foundational to modern derivatives pricing, assumes constant volatility, which is inconsistent with empirical observations of financial markets where volatility exhibits clustering, mean reversion, and correlation with the underlying asset price.
+
+The Heston model, introduced by Steven Heston in 1993, addresses these limitations by modeling volatility as a stochastic process, providing a more realistic framework for derivatives pricing and risk management.
+
+\section{The Heston Stochastic Volatility Model}
+
+\subsection{Model Specification}
+
+The Heston model describes the evolution of an asset price $S_t$ and its instantaneous variance $v_t$ through a system of coupled stochastic differential equations:
+
+\begin{align}
+dS_t &= \mu S_t dt + \sqrt{v_t} S_t dW_1^t \label{eq:asset_price}\\
+dv_t &= \kappa(\theta - v_t)dt + \sigma\sqrt{v_t} dW_2^t \label{eq:variance}
+\end{align}
+
+where:
+\begin{itemize}
+    \item $S_t$ is the asset price at time $t$
+    \item $v_t$ is the instantaneous variance at time $t$
+    \item $\mu$ is the drift rate of the asset
+    \item $\kappa > 0$ is the rate of mean reversion of the variance
+    \item $\theta > 0$ is the long-term average variance
+    \item $\sigma > 0$ is the volatility of volatility (vol-of-vol)
+    \item $W_1^t$ and $W_2^t$ are correlated Brownian motions with correlation $\rho$
+\end{itemize}
+
+The correlation between the two Brownian motions is given by:
+\begin{equation}
+dW_1^t dW_2^t = \rho dt
+\end{equation}
+
+\subsection{Key Properties}
+
+\subsubsection{Mean Reversion}
+The variance process exhibits mean reversion toward the long-term level $\theta$ at a rate determined by $\kappa$. This captures the empirical observation that periods of high volatility tend to be followed by periods of lower volatility, and vice versa.
+
+\subsubsection{Volatility Clustering}
+The stochastic nature of volatility allows the model to capture volatility clustering, where periods of high volatility tend to cluster together.
+
+\subsubsection{Leverage Effect}
+The correlation parameter $\rho$ typically takes negative values, capturing the leverage effect observed in equity markets where declining prices are associated with increasing volatility.
+
+\subsubsection{Feller Condition}
+To ensure that the variance process remains strictly positive, the Feller condition must be satisfied:
+\begin{equation}
+2\kappa\theta \geq \sigma^2
+\end{equation}
+
+\section{Risk-Neutral Dynamics}
+
+Under the risk-neutral measure $\mathbb{Q}$, the asset price and variance processes become:
+
+\begin{align}
+dS_t &= (r - q) S_t dt + \sqrt{v_t} S_t d\tilde{W}_1^t \\
+dv_t &= \kappa^*(\theta^* - v_t)dt + \sigma\sqrt{v_t} d\tilde{W}_2^t
+\end{align}
+
+where:
+\begin{itemize}
+    \item $r$ is the risk-free rate
+    \item $q$ is the dividend yield
+    \item $\kappa^* = \kappa + \lambda$ (risk-adjusted mean reversion speed)
+    \item $\theta^* = \frac{\kappa\theta}{\kappa^*}$ (risk-adjusted long-term variance)
+    \item $\lambda$ is the market price of volatility risk
+\end{itemize}
+
+\section{Autocallable Notes}
+
+\subsection{Product Structure}
+
+Autocallable notes are structured products that automatically redeem (call) if the underlying asset price exceeds a predetermined barrier level on predefined observation dates. These instruments typically offer:
+
+\begin{itemize}
+    \item Periodic coupon payments when certain conditions are met
+    \item Early redemption (autocall) feature
+    \item Capital protection (partial or full) at maturity
+    \item Memory effect for unpaid coupons
+\end{itemize}
+
+\subsection{Payoff Structure}
+
+Let $S_{t_i}$ denote the underlying price at observation date $t_i$, and define the following barriers as percentages of the initial strike price $K$:
+
+\begin{itemize}
+    \item Autocall barrier: $B_{AC}$
+    \item Coupon barrier: $B_C$
+    \item Protection barrier: $B_P$
+\end{itemize}
+
+The payoff at each observation date $t_i$ (for $i = 1, 2, \ldots, n-1$) is:
+
+\begin{equation}
+\text{Payoff}(t_i) = \begin{cases}
+N \cdot (1 + c \cdot (1 + m \cdot U)) & \text{if } S_{t_i} \geq B_{AC} \cdot K \text{ (Autocall)}\\
+N \cdot c \cdot (1 + m \cdot U) & \text{if } B_C \cdot K \leq S_{t_i} < B_{AC} \cdot K\\
+0 & \text{if } S_{t_i} < B_C \cdot K
+\end{cases}
+\end{equation}
+
+At maturity $t_n$, the payoff is:
+
+\begin{equation}
+\text{Payoff}(t_n) = \begin{cases}
+N \cdot (1 + c \cdot (1 + m \cdot U)) & \text{if } S_{t_n} \geq B_C \cdot K\\
+N & \text{if } B_P \cdot K \leq S_{t_n} < B_C \cdot K\\
+N \cdot \frac{S_{t_n}}{K} & \text{if } S_{t_n} < B_P \cdot K
+\end{cases}
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $N$ is the notional amount
+    \item $c$ is the coupon rate
+    \item $m$ is the memory indicator (1 if memory feature is active, 0 otherwise)
+    \item $U$ is the number of unpaid coupons
+\end{itemize}
+
+\section{Monte Carlo Pricing with Heston Model}
+
+\subsection{Motivation for Monte Carlo}
+
+While the Heston model admits semi-analytical solutions for European options, autocallable notes are path-dependent instruments with complex payoff structures that require numerical methods. Monte Carlo simulation is particularly well-suited because:
+
+\begin{itemize}
+    \item It handles path-dependent features naturally
+    \item It accommodates complex payoff structures
+    \item It provides flexibility for various barrier conditions
+    \item It scales well with the number of observation dates
+\end{itemize}
+
+\subsection{Simulation Scheme}
+
+We employ the Milstein discretization scheme for the Heston model, which provides better convergence properties than the Euler scheme:
+
+\begin{align}
+S_{t+\Delta t} &= S_t \exp\left[(r-q-\frac{v_t}{2})\Delta t + \sqrt{v_t \Delta t} Z_1\right]\\
+v_{t+\Delta t} &= v_t + \kappa^*(\theta^* - v_t)\Delta t + \sigma\sqrt{v_t \Delta t} Z_2 + \frac{\sigma^2}{4}\Delta t(Z_2^2 - 1)
+\end{align}
+
+where $Z_1$ and $Z_2$ are correlated standard normal random variables with correlation $\rho$.
+
+To ensure positivity of the variance process, we apply the absorption scheme:
+\begin{equation}
+v_{t+\Delta t} = \max(v_{t+\Delta t}, 0)
+\end{equation}
+
+\subsection{Algorithm Implementation}
+
+The Monte Carlo pricing algorithm follows these steps:
+
+\begin{enumerate}
+    \item Generate correlated random numbers for each time step
+    \item Simulate asset price and variance paths using the discretization scheme
+    \item For each path, calculate the payoff according to the autocall conditions
+    \item Apply memory effects for unpaid coupons
+    \item Discount payoffs to present value using the risk-free rate
+    \item Compute the average payoff across all paths
+\end{enumerate}
+
+\section{Model Calibration}
+
+\subsection{Calibration Objective}
+
+The Heston model parameters $\{v_0, \kappa^*, \theta^*, \sigma, \rho\}$ are calibrated to market-observed implied volatilities. The calibration minimizes the root mean square error between model and market prices:
+
+\begin{equation}
+\min_{\Theta} \sqrt{\frac{1}{N} \sum_{i=1}^{N} \left(\sigma_{market}^i - \sigma_{model}^i(\Theta)\right)^2}
+\end{equation}
+
+where $\Theta = \{v_0, \kappa^*, \theta^*, \sigma, \rho\}$ represents the parameter vector.
+
+\subsection{Calibration Constraints}
+
+The optimization is subject to the following constraints:
+\begin{align}
+v_0 &> 0 \quad \text{(positive initial variance)}\\
+\kappa^* &> 0 \quad \text{(positive mean reversion)}\\
+\theta^* &> 0 \quad \text{(positive long-term variance)}\\
+\sigma &> 0 \quad \text{(positive vol-of-vol)}\\
+-1 &< \rho < 1 \quad \text{(valid correlation)}\\
+2\kappa^*\theta^* &\geq \sigma^2 \quad \text{(Feller condition)}
+\end{align}
+
+\section{Advantages of the Heston Model}
+
+\subsection{Theoretical Advantages}
+
+\begin{itemize}
+    \item \textbf{Stochastic Volatility}: Captures the random nature of volatility
+    \item \textbf{Mean Reversion}: Models the tendency of volatility to revert to long-term levels
+    \item \textbf{Leverage Effect}: Incorporates the negative correlation between returns and volatility
+    \item \textbf{Analytical Tractability}: Admits semi-closed form solutions for European options
+\end{itemize}
+
+\subsection{Practical Advantages}
+
+\begin{itemize}
+    \item \textbf{Market Consistency}: Better fits to implied volatility surfaces
+    \item \textbf{Risk Management}: More accurate Greeks and risk measures
+    \item \textbf{Model Robustness}: Reduced model risk compared to constant volatility models
+    \item \textbf{Flexibility}: Accommodates various market conditions through parameter adjustment
+\end{itemize}
+
+\section{Implementation Considerations}
+
+\subsection{Numerical Stability}
+
+Several numerical issues must be addressed in practice:
+
+\begin{itemize}
+    \item \textbf{Variance Positivity}: Ensuring $v_t \geq 0$ through absorption or reflection schemes
+    \item \textbf{Discretization Bias}: Using appropriate time steps to minimize discretization errors
+    \item \textbf{Random Number Generation}: Employing high-quality pseudo-random number generators
+    \item \textbf{Antithetic Variates}: Reducing Monte Carlo variance through variance reduction techniques
+\end{itemize}
+
+\subsection{Computational Efficiency}
+
+\begin{itemize}
+    \item \textbf{Vectorization}: Leveraging NumPy for efficient array operations
+    \item \textbf{Parallel Processing}: Utilizing multiple cores for independent path generation
+    \item \textbf{Memory Management}: Optimizing memory usage for large-scale simulations
+    \item \textbf{Convergence Monitoring}: Implementing statistical tests for Monte Carlo convergence
+\end{itemize}
+
+\section{Conclusion}
+
+The Heston stochastic volatility model provides a sophisticated framework for pricing complex derivatives such as autocallable notes. By incorporating stochastic volatility, mean reversion, and the leverage effect, the model offers significant improvements over the Black-Scholes framework in terms of market realism and pricing accuracy.
+
+The implementation of a Heston-based pricer for autocallable notes demonstrates the practical application of advanced financial models in derivatives pricing. The Monte Carlo approach provides the flexibility needed to handle the path-dependent nature and complex payoff structures inherent in these instruments.
+
+While the model introduces additional complexity in terms of calibration and computation, the benefits in terms of pricing accuracy and risk management make it an essential tool for quantitative finance practitioners dealing with volatility-sensitive derivatives.
+
+\section{Future Extensions}
+
+Potential enhancements to the current framework include:
+
+\begin{itemize}
+    \item Integration of jump processes (Bates model)
+    \item Multi-asset extension for basket autocallables
+    \item Implementation of exotic barrier types
+    \item Development of semi-analytical approximations for faster pricing
+    \item Integration with market data feeds for real-time calibration
+\end{itemize}
+
+\begin{thebibliography}{9}
+
+\bibitem{heston1993}
+Heston, S. L. (1993). 
+\textit{A closed-form solution for options with stochastic volatility with applications to bond and currency options}.
+The Review of Financial Studies, 6(2), 327-343.
+
+\bibitem{gatheral2006}
+Gatheral, J. (2006).
+\textit{The Volatility Surface: A Practitioner's Guide}.
+John Wiley \& Sons.
+
+\bibitem{rouah2013}
+Rouah, F. D. (2013).
+\textit{The Heston Model and Its Extensions in Matlab and C\#}.
+John Wiley \& Sons.
+
+\bibitem{quantlib}
+QuantLib Development Team.
+\textit{QuantLib: A free/open-source library for quantitative finance}.
+\url{http://quantlib.org/}
+
+\bibitem{hull2018}
+Hull, J. C. (2018).
+\textit{Options, Futures, and Other Derivatives} (10th ed.).
+Pearson.
+
+\end{thebibliography}
+
+\end{document}
